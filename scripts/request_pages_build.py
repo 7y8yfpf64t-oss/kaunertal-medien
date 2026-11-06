@@ -8,6 +8,7 @@ import re
 import subprocess
 import time
 from urllib.error import HTTPError
+from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from sync_original_media import FILES, REPOSITORY, load_manifest
@@ -83,6 +84,25 @@ def verify_public_with_retry(root):
             time.sleep(10)
 
 
+def submission_summary(response):
+    """Diagnostic allowlist: never print the token, headers, or raw API payload."""
+    if not isinstance(response, dict):
+        return {'response_type': type(response).__name__}
+    status = response.get('status')
+    if status is not None and (not isinstance(status, str) or not re.fullmatch(r'[a-z_]{1,32}', status)):
+        status = '[unexpected value]'
+    url = response.get('url')
+    try:
+        parsed = urlsplit(url) if isinstance(url, str) else None
+    except ValueError:
+        parsed = None
+    safe_path = (parsed is not None and parsed.netloc == 'api.github.com' and
+                 re.fullmatch(r'/(?:repos/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+|repositories/[0-9]+)/pages/builds/(?:latest|[0-9]+)', parsed.path))
+    return {'status': status,
+            'url': 'https://api.github.com' + parsed.path if safe_path else '[unrecognized URL]',
+            'url_has_query_or_fragment': bool(parsed and (parsed.query or parsed.fragment))}
+
+
 def publish(expected_commit, *, api, verify_public, sleep=time.sleep, attempts=60):
     if not re.fullmatch(r'[0-9a-f]{40}', expected_commit):
         raise ValueError('Expected commit must be a complete Git SHA')
@@ -94,9 +114,10 @@ def publish(expected_commit, *, api, verify_public, sleep=time.sleep, attempts=6
     if api('GET', '/git/ref/heads/main').get('object', {}).get('sha') != expected_commit:
         raise RuntimeError('Remote main changed after checkout/push; rerun safely from the latest main')
     requested = api('POST', '/pages/builds')
-    if (requested.get('url') != API_ROOT + '/pages/builds/latest' or
-            requested.get('status') not in {'queued', 'building', 'built'}):
-        raise RuntimeError('GitHub did not confirm the expected Pages build request')
+    print('Pages POST confirmation: ' + json.dumps(submission_summary(requested)), flush=True)
+    # api_request already requires HTTP 201. The response body is diagnostic only:
+    # never follow its URL or treat its status as proof of publication. GitHub's
+    # fixed /latest endpoint, exact commit and six public hashes decide success.
     print('Pages build requested for commit ' + expected_commit, flush=True)
     for attempt in range(attempts):
         build = api('GET', '/pages/builds/latest')
