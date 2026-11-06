@@ -1,0 +1,63 @@
+name: Verify and sync Kaunertal originals
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - media-sync.json
+      - scripts/sync_original_media.py
+      - scripts/request_pages_build.py
+      - tests/test_sync_original_media.py
+      - tests/test_request_pages_build.py
+      - .github/workflows/sync-original-media.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: kaunertal-original-media-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == '7y8yfpf64t-oss/kaunertal-medien' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the pinned destination repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: 7y8yfpf64t-oss/kaunertal-medien
+          ref: main
+          fetch-depth: 1
+      - name: Test verification and failure handling without network
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Download and verify all required originals before replacement
+        run: python3 scripts/sync_original_media.py
+      - name: Commit only the six verified media paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=(
+            kaunertal-trailer-v6.mp4
+            kaunertal-trailer-poster.jpg
+            web_audio/neoncholy_1up_2_few.mp3
+            web_audio/neoncholy_legacy_of_crosbo.mp3
+            web_audio/neoncholy_sunday_glide.mp3
+            web_audio/neoncholy_punch_up.mp3
+          )
+          git add -- "${paths[@]}"
+          if git diff --cached --quiet -- "${paths[@]}"; then
+            echo "All six originals already match; no commit needed."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit --only -m 'Sync six checksum-verified Kaunertal originals' -- "${paths[@]}"
+          git push origin HEAD:main
+      - name: Request Pages build and verify its commit and six public originals
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/request_pages_build.py
