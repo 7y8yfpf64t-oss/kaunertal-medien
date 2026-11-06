@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "repository": "7y8yfpf64t-oss/kaunertal-medien",
+  "source_origin": "https://kaunertal.cc",
+  "files": {
+    "kaunertal-trailer-v6.mp4": {
+      "size": 25672857,
+      "sha256": "935e8a8deaa6482c6890b3bb1f4c13e7cc71a09cba658638d8086cbe40b8c46c"
+    },
+    "kaunertal-trailer-poster.jpg": {
+      "size": 1140909,
+      "sha256": "46ea61f943d8c4e919ae6a2f1bf52f5c289fc42959b43e7c855da41ab9118840"
+    },
+    "web_audio/neoncholy_1up_2_few.mp3": {
+      "size": 7416785,
+      "sha256": "eaad7a6218436c5fab7d0c59dbc4d80f6e34fa2af4e8db7623ab97814292c669"
+    },
+    "web_audio/neoncholy_legacy_of_crosbo.mp3": {
+      "size": 5440051,
+      "sha256": "6ebb8325ac0c655fd97eb7c81178541f51370114fbe6751e7194511500200cdd"
+    },
+    "web_audio/neoncholy_sunday_glide.mp3": {
+      "size": 4650522,
+      "sha256": "1bd5d059de9ef1fbe718c777db1fa7d1225f1863e3550e388e9fc59b2af9d16c"
+    },
+    "web_audio/neoncholy_punch_up.mp3": {
+      "size": 1887084,
+      "sha256": "8e0d6c04e0b4ba26a47ac7b49c977c7bc2b6b8f46d97c6b7b6018e7a009a39ad"
+    }
+  }
+}
