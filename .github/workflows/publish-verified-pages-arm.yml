@@ -1,0 +1,60 @@
+name: Publish verified Kaunertal media on ARM
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/publish-verified-pages-arm.yml]
+
+permissions: {}
+
+jobs:
+  prepare:
+    if: github.repository == '7y8yfpf64t-oss/kaunertal-medien'
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Verify main still contains the reviewed media
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=(.nojekyll index.html kaunertal-trailer-poster.jpg kaunertal-trailer-v6.mp4 map-packs web_audio)
+          git ls-tree -r -z HEAD -- "${paths[@]}" > "$RUNNER_TEMP/public-tree"
+          sha256sum "$RUNNER_TEMP/public-tree" | grep '^63c18ebf713893f1a5c357ed9c3d62ddd9779b4a85ea3f0116129ad4ea4b5db9  '
+      - name: Retrieve the exact 207-file archive from ARM verification run 43105334530
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/13894840154/zip" > verified.zip
+          echo '5083e7352da1304ba831c97697320103f18147c695fa9aa070013529bdc61b02  verified.zip' | sha256sum -c -
+          unzip -p verified.zip artifact.tar > artifact.tar
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    needs: prepare
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - name: Deploy the verified archive to the existing media site
+        id: publish
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
