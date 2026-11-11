@@ -1,0 +1,33 @@
+name: Verify Kaunertal Pages media on ARM
+
+on:
+  push:
+    branches:
+      - codex/pages-arm-probe-15700a1
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.repository == '7y8yfpf64t-oss/kaunertal-medien'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: 15700a13c011abda5e183fca50b75088df6e17e8
+          persist-credentials: false
+      - name: Package the reviewed public media, including historical maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=(.nojekyll index.html kaunertal-trailer-poster.jpg kaunertal-trailer-v6.mp4 map-packs web_audio)
+          git ls-tree -r -z HEAD -- "${paths[@]}" > "$RUNNER_TEMP/public-tree"
+          sha256sum "$RUNNER_TEMP/public-tree" | grep '^63c18ebf713893f1a5c357ed9c3d62ddd9779b4a85ea3f0116129ad4ea4b5db9  '
+          git archive --format=tar --output="$RUNNER_TEMP/artifact.tar" 'HEAD^{tree}' -- "${paths[@]}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
