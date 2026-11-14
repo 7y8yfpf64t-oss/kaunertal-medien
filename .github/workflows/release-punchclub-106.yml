@@ -1,0 +1,74 @@
+name: Release verified Punch Club 106 ring
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - release-deltas/punch-ring-bf0ca319b1962915.json
+      - scripts/apply_pck_delta.py
+      - .github/workflows/release-punchclub-106.yml
+
+permissions: {}
+
+concurrency:
+  group: punchclub-106-media-main
+  cancel-in-progress: false
+
+jobs:
+  reconstruct:
+    if: github.repository == '7y8yfpf64t-oss/kaunertal-medien' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - name: Check out only the reviewed base and reconstruction inputs
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: true
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /map-packs/fight_club_ringroom.8d5dd80646dc03bb.pck
+            /map-packs/fight_club_ringroom.bf0ca319b1962915.pck
+            /release-deltas/punch-ring-bf0ca319b1962915.json
+            /scripts/apply_pck_delta.py
+      - name: Reconstruct and verify the exact tested ring pack
+        run: python3 scripts/apply_pck_delta.py release-deltas/punch-ring-bf0ca319b1962915.json
+      - name: Commit only the verified additional ring pack
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=map-packs/fight_club_ringroom.bf0ca319b1962915.pck
+          echo "bf0ca319b196291584c4a728ae15f166d3878daae0d333fa59488c0bb3302b9f  $target" | sha256sum -c -
+          test "$(wc -c < "$target")" -eq 50287108
+          git add --sparse -- "$target"
+          if ! git diff --cached --quiet; then
+            test "$(git diff --cached --name-status)" = "$(printf 'A\t%s' "$target")"
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit --only -m 'Publish checksum-verified Punch Club 106 ring pack' -- "$target"
+            git push origin HEAD:main
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Request publication on the existing Pages site
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_COMMIT: ${{ steps.commit.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_COMMIT"
+          gh api "repos/$GITHUB_REPOSITORY/pages" --jq '{source, build_type, html_url}' > "$RUNNER_TEMP/punch-pages.json"
+          python3 - "$RUNNER_TEMP/punch-pages.json" <<'PY'
+          import json, sys
+          site = json.load(open(sys.argv[1]))
+          assert site['source'] == {'branch': 'main', 'path': '/'}
+          assert site.get('build_type', 'legacy') == 'legacy'
+          assert site['html_url'].rstrip('/') == 'https://7y8yfpf64t-oss.github.io/kaunertal-medien'
+          PY
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" --jq '{status, url}'
+          echo "Requested Pages build for verified media commit $EXPECTED_COMMIT"
