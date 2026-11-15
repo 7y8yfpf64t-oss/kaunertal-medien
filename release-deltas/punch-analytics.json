@@ -1,0 +1,56 @@
+[
+  {
+    "room": "fight_club_bar",
+    "recipe": "release-deltas/punch-analytics-fight_club_bar-f17cfc788b019246.json",
+    "source": "map-packs/fight_club_bar.f1829a63c47171df.pck",
+    "target": "map-packs/fight_club_bar.f17cfc788b019246.pck",
+    "sha256": "f17cfc788b01924658a667ec22244676100ac2bb15dc663b9182c1e304f32338",
+    "size": 5927248,
+    "recipe_bytes": 39920
+  },
+  {
+    "room": "fight_club_dojo",
+    "recipe": "release-deltas/punch-analytics-fight_club_dojo-324b73c43d003a07.json",
+    "source": "map-packs/fight_club_dojo.cb48c2056ea4f386.pck",
+    "target": "map-packs/fight_club_dojo.324b73c43d003a07.pck",
+    "sha256": "324b73c43d003a07c39cc468cf211cf2cbb67c6a4a296105cebdd8f180ed8ff0",
+    "size": 3461980,
+    "recipe_bytes": 41110
+  },
+  {
+    "room": "fight_club_gym",
+    "recipe": "release-deltas/punch-analytics-fight_club_gym-5ab9aa476ef239de.json",
+    "source": "map-packs/fight_club_gym.95f22660cba852c5.pck",
+    "target": "map-packs/fight_club_gym.5ab9aa476ef239de.pck",
+    "sha256": "5ab9aa476ef239de861565947023c89044151a5f623ae27bbb2fbaf2fa129e4e",
+    "size": 8373828,
+    "recipe_bytes": 47855
+  },
+  {
+    "room": "fight_club_hall",
+    "recipe": "release-deltas/punch-analytics-fight_club_hall-50c6e510bf8ed08d.json",
+    "source": "map-packs/fight_club_hall.4cb46613f3f571ab.pck",
+    "target": "map-packs/fight_club_hall.50c6e510bf8ed08d.pck",
+    "sha256": "50c6e510bf8ed08d6bf4d9a731f0780056cd847cbe0fbf0baa9191a1dd789bb3",
+    "size": 2720388,
+    "recipe_bytes": 39199
+  },
+  {
+    "room": "fight_club_lobby",
+    "recipe": "release-deltas/punch-analytics-fight_club_lobby-d9ac4e776ea2359b.json",
+    "source": "map-packs/fight_club_lobby.4d291d45cedef16d.pck",
+    "target": "map-packs/fight_club_lobby.d9ac4e776ea2359b.pck",
+    "sha256": "d9ac4e776ea2359baeeb2004839b3b80551327c4b25f5360871bf6ce8c834c4d",
+    "size": 2235192,
+    "recipe_bytes": 38165
+  },
+  {
+    "room": "fight_club_ringroom",
+    "recipe": "release-deltas/punch-analytics-fight_club_ringroom-4731afe8f30159ed.json",
+    "source": "map-packs/fight_club_ringroom.bf0ca319b1962915.pck",
+    "target": "map-packs/fight_club_ringroom.4731afe8f30159ed.pck",
+    "sha256": "4731afe8f30159edb547a919fa708ec1adeac4b6f4306fae56b83797918a9813",
+    "size": 50288836,
+    "recipe_bytes": 157876
+  }
+]

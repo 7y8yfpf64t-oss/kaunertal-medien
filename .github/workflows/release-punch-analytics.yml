@@ -1,0 +1,87 @@
+name: Release verified Punch Club analytics packs
+on:
+  push:
+    branches: [main]
+    paths:
+      - release-deltas/punch-analytics.json
+      - .github/workflows/release-punch-analytics.yml
+permissions: {}
+concurrency:
+  group: punch-analytics-media-main
+  cancel-in-progress: false
+jobs:
+  reconstruct:
+    if: github.repository == '7y8yfpf64t-oss/kaunertal-medien' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: true
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /map-packs/fight_club_bar.f17cfc788b019246.pck
+            /map-packs/fight_club_bar.f1829a63c47171df.pck
+            /map-packs/fight_club_dojo.324b73c43d003a07.pck
+            /map-packs/fight_club_dojo.cb48c2056ea4f386.pck
+            /map-packs/fight_club_gym.5ab9aa476ef239de.pck
+            /map-packs/fight_club_gym.95f22660cba852c5.pck
+            /map-packs/fight_club_hall.4cb46613f3f571ab.pck
+            /map-packs/fight_club_hall.50c6e510bf8ed08d.pck
+            /map-packs/fight_club_lobby.4d291d45cedef16d.pck
+            /map-packs/fight_club_lobby.d9ac4e776ea2359b.pck
+            /map-packs/fight_club_ringroom.4731afe8f30159ed.pck
+            /map-packs/fight_club_ringroom.bf0ca319b1962915.pck
+            /release-deltas/punch-analytics-fight_club_bar-f17cfc788b019246.json
+            /release-deltas/punch-analytics-fight_club_dojo-324b73c43d003a07.json
+            /release-deltas/punch-analytics-fight_club_gym-5ab9aa476ef239de.json
+            /release-deltas/punch-analytics-fight_club_hall-50c6e510bf8ed08d.json
+            /release-deltas/punch-analytics-fight_club_lobby-d9ac4e776ea2359b.json
+            /release-deltas/punch-analytics-fight_club_ringroom-4731afe8f30159ed.json
+            /release-deltas/punch-analytics.json
+            /scripts/apply_punch_analytics_delta.py
+      - name: Reconstruct and verify all six exported packs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYCODE'
+          import json, subprocess
+          rows=json.load(open('release-deltas/punch-analytics.json'))
+          assert len(rows)==6
+          for row in rows:
+              subprocess.run(['python3','scripts/apply_punch_analytics_delta.py',row['recipe']],check=True)
+          PYCODE
+      - name: Commit only verified additional map packs
+        shell: bash
+        run: |
+          set -euo pipefail
+          targets=(map-packs/fight_club_bar.f17cfc788b019246.pck map-packs/fight_club_dojo.324b73c43d003a07.pck map-packs/fight_club_gym.5ab9aa476ef239de.pck map-packs/fight_club_hall.50c6e510bf8ed08d.pck map-packs/fight_club_lobby.d9ac4e776ea2359b.pck map-packs/fight_club_ringroom.4731afe8f30159ed.pck)
+          git add --sparse -- "${targets[@]}"
+          if ! git diff --cached --quiet; then
+            test "$(git diff --cached --name-only | wc -l)" -eq 6
+            test -z "$(git diff --cached --name-status | awk '$1 != "A" {print}')"
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit --only -m 'Publish verified Punch Club analytics map packs' -- "${targets[@]}"
+            git push origin HEAD:main
+          fi
+      - name: Request publication on the existing Pages site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/pages" --jq '{source, build_type, html_url}' > "$RUNNER_TEMP/pages.json"
+          python3 - "$RUNNER_TEMP/pages.json" <<'PYCODE'
+          import json,sys
+          site=json.load(open(sys.argv[1]))
+          assert site['source']=={'branch':'main','path':'/'}
+          assert site.get('build_type','legacy')=='legacy'
+          assert site['html_url'].rstrip('/')=='https://7y8yfpf64t-oss.github.io/kaunertal-medien'
+          PYCODE
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" --jq '{status,url}'
