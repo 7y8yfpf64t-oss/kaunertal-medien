@@ -1,0 +1,38 @@
+name: Build verified Arcade 116 media candidate
+on:
+  push:
+    branches: [arcade116-media-build]
+    paths: ['.ci/arcade116/READY']
+concurrency:
+  group: arcade116-public-media
+  cancel-in-progress: false
+permissions: {}
+jobs:
+  build:
+    if: github.repository == '7y8yfpf64t-oss/kaunertal-medien' && !github.event.deleted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          sparse-checkout: .ci/arcade116
+      - name: Check ready marker and prepare Python
+        run: |
+          set -eu
+          test "$(cat .ci/arcade116/READY)" = "9be489806a6de8d61fc3f76a26a3fa9f4276a3d92cd839254a242a8824ea9f3d"
+          python3.12 -m venv "$RUNNER_TEMP/arcade-py"
+          "$RUNNER_TEMP/arcade-py/bin/pip" install --only-binary=:all: 'Pillow==13.0.0'
+          "$RUNNER_TEMP/arcade-py/bin/python" -c 'from PIL import features; assert features.version("webp") == "1.6.0"'
+      - name: Rebuild 73 packs from verified public V115 files
+        run: |
+          set -eu
+          python3.12 .ci/arcade116/publish.py inputs "$RUNNER_TEMP/v115"
+          "$RUNNER_TEMP/arcade-py/bin/python" .ci/arcade116/rebuild.py --base "$RUNNER_TEMP/v115" --output "$RUNNER_TEMP/v116" --jobs 3
+      - name: Verify all packs and publish the candidate ref
+        id: production
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3.12 .ci/arcade116/publish.py publish "$RUNNER_TEMP/v116"
