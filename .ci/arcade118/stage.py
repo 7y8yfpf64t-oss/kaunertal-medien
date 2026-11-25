@@ -31,15 +31,33 @@ with tempfile.TemporaryDirectory() as tmp:
 tree=api('git/trees',{'base_tree':'88c6fd58e82c10967786c298dacb3a0a0f17e1fc','tree':[{'path':filename,'type':'blob','mode':'100644','sha':blob}]})['sha']
 assert tree=='a3e49289cde1e4ecf28e96a2f683b9f6e42dabc2'
 print('Verified ring tree',tree,flush=True)
-dt=datetime.fromtimestamp(1795634100,timezone(timedelta(hours=1))).isoformat()
-who={'name':'Kaunertal Release','email':'release@kaunertal.cc','date':dt}
-obj=api('git/commits',{'message':'Prepare the updated Arcade menu pack for 0.26.118','tree':tree,'parents':[parent],'author':who,'committer':who})
-assert obj['sha']==candidate,obj['sha']
-print('Verified release commit',candidate,flush=True)
-try:
-    result=api('git/refs',{'ref':dest,'sha':candidate})
-    assert result['object']['sha']==candidate
-except urllib.error.HTTPError as exc:
-    if exc.code!=422: raise
+# Send a standard Git receive-pack request for the four new objects only.
+# The existing parent tree has hundreds of large assets and is already on origin.
+with tempfile.TemporaryDirectory() as tmp:
+    subprocess.run(['git','init','--bare','--quiet',tmp],check=True)
+    def git(args,data):
+        return subprocess.check_output(['git','-C',tmp]+args,input=data)
+    assert git(['hash-object','-w','--stdin'],body).decode().strip()==blob
+    sub='73057b12e1af7e74c0c95927f7be8d1d43b6e0ca'
+    for address in (sub,tree):
+        rows=api('git/trees/'+address)['tree']
+        source=b''.join((row['mode'].lstrip('0')+' '+row['path']).encode()+b'\x00'+bytes.fromhex(row['sha']) for row in rows)
+        assert git(['hash-object','-t','tree','-w','--stdin'],source).decode().strip()==address
+    assert git(['hash-object','-t','commit','-w','--stdin'],(root/'.ci/arcade118/commit.txt').read_bytes()).decode().strip()==candidate
+    pack=git(['pack-objects','--stdout','--no-reuse-delta','--window=0'],('\n'.join([blob,sub,tree,candidate])+'\n').encode())
+    assert pack[:4]==b'PACK' and int.from_bytes(pack[8:12],'big')==4
+headers={'Authorization':'Basic '+base64.b64encode(('x-access-token:'+os.environ['GH_TOKEN']).encode()).decode(),'User-Agent':'git/2.47.0'}
+git_url='https://github.com/'+repo+'.git'
+with urllib.request.urlopen(urllib.request.Request(git_url+'/info/refs?service=git-receive-pack',headers=headers),timeout=30) as response:
+    refs=response.read()
+assert (parent+' refs/heads/main').encode() in refs or (candidate+' refs/heads/main').encode() in refs
+if (candidate+' '+dest).encode() not in refs:
+    line=('0'*40+' '+candidate+' '+dest+'\x00report-status\n').encode()
+    payload=('%04x'%(4+len(line))).encode()+line+b'0000'+pack
+    post={**headers,'Content-Type':'application/x-git-receive-pack-request','Accept':'application/x-git-receive-pack-result'}
+    with urllib.request.urlopen(urllib.request.Request(git_url+'/git-receive-pack',headers=post,data=payload),timeout=75) as response:
+        receipt=response.read().decode()
+    print('Git receive-pack',receipt,flush=True)
+    assert 'unpack ok' in receipt and ('ok '+dest) in receipt or verify_ref()
 assert verify_ref()
-print('Verified candidate ref',dest,candidate)
+print('Verified exact canonical commit',candidate,'on',dest)
