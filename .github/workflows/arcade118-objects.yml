@@ -1,0 +1,22 @@
+name: Stage the exact Arcade 118 media objects
+on:
+  push:
+    branches: [arcade-118-ring-build]
+    paths: ['.github/workflows/arcade118-objects.yml']
+permissions: {}
+jobs:
+  stage:
+    if: github.repository == '7y8yfpf64t-oss/kaunertal-medien' && !github.event.deleted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          sparse-checkout: .ci/arcade118
+          persist-credentials: false
+      - name: Rebuild and verify the exact candidate against the current parent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .ci/arcade118/stage.py
