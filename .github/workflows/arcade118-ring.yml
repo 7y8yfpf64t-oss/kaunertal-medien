@@ -1,0 +1,67 @@
+name: Verify and publish the 0.26.118 ring
+on:
+  push:
+    branches: [arcade-118-ring-build]
+    paths: ['.github/workflows/arcade118-ring.yml']
+permissions: {}
+jobs:
+  media:
+    if: github.repository == '7y8yfpf64t-oss/kaunertal-medien' && !github.event.deleted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    permissions:
+      contents: write
+    env:
+      PARENT: 5c285300c1fce1187bee35af4e2b373277780c04
+      CANDIDATE: b3fd078f25c929d792eee54bb4693879f41b8421
+      OLD_RING: map-packs/fight_club_ringroom.68b26fd03ae085af.pck
+      RING: map-packs/fight_club_ringroom.179da0608870dae0.pck
+      SHA256_RING: 179da0608870dae09e5732129379d1b0d916a6eb807608951ff39e94aba000fe
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.ci/arcade118/
+            /map-packs/fight_club_ringroom.68b26fd03ae085af.pck
+      - name: Rebuild the ring from the original and verify its immutable commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$PARENT"
+          git fetch --no-tags --filter=blob:none --depth=1 origin "$PARENT"
+          mkdir "$RUNNER_TEMP/ring"
+          cp "$OLD_RING" "$RUNNER_TEMP/ring/ring.pck"
+          (cd "$RUNNER_TEMP/ring" && git apply --binary "$GITHUB_WORKSPACE/.ci/arcade118/ring.patch")
+          printf '%s  %s\n' "$SHA256_RING" "$RUNNER_TEMP/ring/ring.pck" | sha256sum -c -
+          test "$(wc -c < "$RUNNER_TEMP/ring/ring.pck")" -eq 8029880
+          blob=$(git hash-object -w "$RUNNER_TEMP/ring/ring.pck")
+          test "$blob" = 9247f4525d475ae356201e024f4f7a56136d5792
+          export GIT_INDEX_FILE="$RUNNER_TEMP/media.index"
+          git read-tree "$PARENT"
+          git update-index --add --cacheinfo "100644,$blob,$RING"
+          test "$(git write-tree)" = a3e49289cde1e4ecf28e96a2f683b9f6e42dabc2
+          test "$(git hash-object -w -t commit .ci/arcade118/commit.txt)" = "$CANDIDATE"
+          test "$(git diff-tree --no-commit-id --name-status -r "$PARENT" "$CANDIDATE")" = "$(printf 'A\t%s' "$RING")"
+          git push origin "$CANDIDATE:refs/heads/arcade-118-media-verified"
+      - name: Read the released ring from GitHub Pages and its raw fallback
+        shell: python
+        run: |
+          import hashlib, os, time, urllib.request
+          path=os.environ['RING']
+          expected=os.environ['SHA256_RING']
+          for base in ['https://raw.githubusercontent.com/7y8yfpf64t-oss/kaunertal-medien/'+os.environ['CANDIDATE'], 'https://7y8yfpf64t-oss.github.io/kaunertal-medien']:
+              url=base+'/'+path
+              for attempt in range(60):
+                  try:
+                      req=urllib.request.Request(url+'?release=118&attempt='+str(attempt),headers={'User-Agent':'Kaunertal-release-verify'})
+                      with urllib.request.urlopen(req,timeout=20) as response:
+                          body=response.read()
+                      digest=hashlib.sha256(body).hexdigest()
+                      assert len(body)==8029880 and digest==expected, (len(body), digest)
+                      print('VERIFIED', url, len(body), digest, flush=True)
+                      break
+                  except Exception as err:
+                      if attempt==59: raise
+                      print(str(err), flush=True)
+                      time.sleep(8)
