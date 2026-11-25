@@ -16,7 +16,7 @@ jobs:
         with:
           sparse-checkout: .ci/arcade118
           persist-credentials: false
-      - name: Rebuild and verify the exact candidate against the current parent
+      - name: Verify and send the four canonical Git objects
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 .ci/arcade118/stage.py
