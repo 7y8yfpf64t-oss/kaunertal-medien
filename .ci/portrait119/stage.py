@@ -2,9 +2,9 @@ import base64, hashlib, json, os, pathlib, subprocess, tempfile, urllib.error, u
 from datetime import datetime, timezone, timedelta
 repo = '7y8yfpf64t-oss/kaunertal-medien'
 parent = 'b3fd078f25c929d792eee54bb4693879f41b8421'
-candidate = '50d6616c592f8de2f92e8c4de1c08eecbe98cdbf'
-filename = 'map-packs/fight_club_ringroom.e7e55935f7f9b86e.pck'
-dest = 'refs/heads/portrait-119-media-verified'
+candidate = '29999f5c6f6b5ca427dc9c0cce65245270254be9'
+filename = 'map-packs/fight_club_ringroom.93eefb8955176a05.pck'
+dest = 'refs/heads/portrait-119-media-verified-29999f5c'
 base = 'https://api.github.com/repos/'+repo+'/'
 def api(path, data=None):
     req = urllib.request.Request(base+path,data=json.dumps(data).encode() if data is not None else None,
@@ -24,12 +24,12 @@ with tempfile.TemporaryDirectory() as tmp:
     assert hashlib.sha256(ring.read_bytes()).hexdigest()=='179da0608870dae09e5732129379d1b0d916a6eb807608951ff39e94aba000fe'
     subprocess.run(['git','apply','--binary',str(root/'.ci/portrait119/ring.patch')],cwd=tmp,check=True)
     body=ring.read_bytes()
-    assert len(body)==8033280 and hashlib.sha256(body).hexdigest()=='e7e55935f7f9b86e0262a84a6358467a9418d10b23c6ff5c9b38270ffa702474'
+    assert len(body)==8034016 and hashlib.sha256(body).hexdigest()=='93eefb8955176a05074309a703f6e167a4cd3c7b2a3aa8ca02ce6abe68a4d24a'
     blob=api('git/blobs',{'encoding':'base64','content':base64.b64encode(body).decode()})['sha']
-    assert blob=='01fb7ef227567a0c7e4454670efaba194e3501b5'
+    assert blob=='a2160789e59772a87293f9498e7346f09facf5d6'
     print('Verified ring blob',blob,flush=True)
 tree=api('git/trees',{'base_tree':'a3e49289cde1e4ecf28e96a2f683b9f6e42dabc2','tree':[{'path':filename,'type':'blob','mode':'100644','sha':blob}]})['sha']
-assert tree=='e2ca6e490cca3a4c36f88896460f0590f9ea986b'
+assert tree=='25c8b13c919ea92b3feccd27b1390a29cc422e61'
 print('Verified ring tree',tree,flush=True)
 # Send a standard Git receive-pack request for the four new objects only.
 # The existing parent tree has hundreds of large assets and is already on origin.
@@ -38,7 +38,7 @@ with tempfile.TemporaryDirectory() as tmp:
     def git(args,data):
         return subprocess.check_output(['git','-C',tmp]+args,input=data)
     assert git(['hash-object','-w','--stdin'],body).decode().strip()==blob
-    sub='86c2c7ed4be1ab02c95c2df0a6db4fdcc301db10'
+    sub='50278063b8c2e77bdcdeea864370ac2e45f65bd9'
     for address in (sub,tree):
         rows=api('git/trees/'+address)['tree']
         source=b''.join((row['mode'].lstrip('0')+' '+row['path']).encode()+b'\x00'+bytes.fromhex(row['sha']) for row in rows)

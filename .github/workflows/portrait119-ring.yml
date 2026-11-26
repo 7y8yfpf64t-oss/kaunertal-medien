@@ -2,7 +2,7 @@ name: Stage verified portrait-selection ring 119
 on:
   push:
     branches: [portrait-119-ring-build]
-    paths: ['.github/workflows/portrait119-ring.yml']
+    paths: ['.github/workflows/portrait119-ring.yml', '.ci/portrait119/**']
 permissions: {}
 jobs:
   stage:
