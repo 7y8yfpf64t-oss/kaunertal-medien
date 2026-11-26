@@ -1,0 +1,22 @@
+name: Stage verified portrait-selection ring 119
+on:
+  push:
+    branches: [portrait-119-ring-build]
+    paths: ['.github/workflows/portrait119-ring.yml']
+permissions: {}
+jobs:
+  stage:
+    if: github.repository == '7y8yfpf64t-oss/kaunertal-medien' && !github.event.deleted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          sparse-checkout: .ci/portrait119
+          persist-credentials: false
+      - name: Verify and send the four canonical Git objects
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .ci/portrait119/stage.py
