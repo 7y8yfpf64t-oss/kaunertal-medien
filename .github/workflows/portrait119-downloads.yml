@@ -1,0 +1,38 @@
+name: Verify public portrait-selection ring, release 119
+on:
+  push:
+    branches: [portrait-119-ring-build]
+    paths: ['.github/workflows/portrait119-downloads.yml']
+permissions: {}
+jobs:
+  verify:
+    if: github.repository == '7y8yfpf64t-oss/kaunertal-medien' && !github.event.deleted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 27
+    steps:
+      - name: Check pinned raw fallback and the released GitHub Pages bytes
+        shell: python
+        run: |
+          import hashlib, time, urllib.request
+          path='map-packs/fight_club_ringroom.93eefb8955176a05.pck'
+          origin='https://raw.githubusercontent.com/7y8yfpf64t-oss/kaunertal-medien/29999f5c6f6b5ca427dc9c0cce65245270254be9/'
+          pages='https://7y8yfpf64t-oss.github.io/kaunertal-medien/'
+          for base in (origin,pages):
+              for attempt in range(120):
+                  try:
+                      url=base+path
+                      with urllib.request.urlopen(url,timeout=15) as r:
+                          data=r.read()
+                          status=r.status
+                      h=hashlib.sha256(data).hexdigest()
+                      assert status==200 and len(data)==8034016 and h=='93eefb8955176a05074309a703f6e167a4cd3c7b2a3aa8ca02ce6abe68a4d24a',(status,len(data),h)
+                      print('VERIFIED',url,status,len(data),h,flush=True)
+                      break
+                  except Exception as err:
+                      print(str(err),flush=True)
+                      if attempt==119: raise
+                      time.sleep(8)
+          with urllib.request.urlopen(pages+'map-packs/fight_club_ringroom.179da0608870dae0.pck',timeout=20) as answer:
+              previous=answer.read()
+              assert answer.status==200 and len(previous)==8029880 and hashlib.sha256(previous).hexdigest()=='179da0608870dae09e5732129379d1b0d916a6eb807608951ff39e94aba000fe'
+              print('VERIFIED still available: previous 118 ring, 8029880 bytes',flush=True)
